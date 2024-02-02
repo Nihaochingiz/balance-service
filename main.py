@@ -21,11 +21,14 @@ conn = psycopg2.connect(
         password=password
     )
 
+
 class Transaction(BaseModel):
     user_id: int
     amount: float
+class Transfer(BaseModel):
     from_user_id: int
     to_user_id: int
+    amount: float
 
 app = FastAPI()
 
@@ -53,19 +56,21 @@ def deposit_funds(transaction: Transaction):
                 SET amount = amount + %s
                 WHERE user_id = %s
             """, (transaction.amount, transaction.user_id))
-            return "Создан пользователь с ID {transaction.user_id}. Средства зачислены"
+            print(f"Средства успешно зачислены на баланс пользователя с ID {transaction.user_id}.")
+            return {'Зачислены пользователю с ID': transaction.user_id}
         else:
             # Выполнение SQL-запроса для создания новой записи пользователя
             cursor.execute("""
                 INSERT INTO user_balance (user_id, amount)
                 VALUES (%s, %s)
             """, (transaction.user_id, transaction.amount))
-
         # Подтверждение изменений
         conn.commit()
 
-        print(f"Средства успешно зачислены на баланс пользователя с ID {transaction.user_id}.")
-
+        print(f"Пользователь создан. Средства  зачислены на баланс пользователя с ID {transaction.user_id}.")
+        return {'Зачислены пользователю с ID': transaction.user_id,
+                'Зачисленная сумма'          : transaction.amount
+                 }
     except psycopg2.Error as e:
         # Обработка ошибок
         conn.rollback()
@@ -77,23 +82,35 @@ def deposit_funds(transaction: Transaction):
 def withdraw_funds(transaction: Transaction):
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE user_balance SET amount = amount - %s WHERE user_id = %s;", (transaction.amount, transaction.user_id))
-        conn.commit()
-        return {'message': 'Средства успешно сняты с баланса пользователя с ID {transaction.user_id}.'}
+        cursor.execute("SELECT amount FROM user_balance WHERE user_id = %s;", (transaction.user_id,))
+        current_balance = cursor.fetchone()[0]
+        
+        if current_balance >= transaction.amount:
+            cursor.execute("UPDATE user_balance SET amount = amount - %s WHERE user_id = %s;", (transaction.amount, transaction.user_id))
+            conn.commit()
+            return {'Средства сняты ID': transaction.user_id}
+        else:
+            return {'message': 'Ошибка: Недостаточно средств на балансе пользователя.'}
     except psycopg2.Error:
-        return {'message': 'Ошибка при снятии с баланса пользователя с ID {transaction.user_id}.'}
+        return {'Ошибка при снятии с ID': transaction.user_id}
     finally:
         cursor.close()
 
 
 @app.post('/transfer')
-def transfer_funds(transaction: Transaction):
+def transfer_funds(transfer: Transfer):
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE user_balance SET amount = amount - %s WHERE user_id = %s;", (transaction.amount, transaction.from_user_id))
-        cursor.execute("UPDATE user_balance SET amount = amount + %s WHERE user_id = %s;", (transaction.amount, transaction.to_user_id))
-        conn.commit()
-        return {'message': 'Funds transferred successfully'}
+        cursor.execute("SELECT amount FROM user_balance WHERE user_id = %s;", (transfer.from_user_id,))
+        current_balance = cursor.fetchone()[0]
+        
+        if current_balance >= transfer.amount:
+            cursor.execute("UPDATE user_balance SET amount = amount - %s WHERE user_id = %s;", (transfer.amount, transfer.from_user_id))
+            cursor.execute("UPDATE user_balance SET amount = amount + %s WHERE user_id = %s;", (transfer.amount, transfer.to_user_id))
+            conn.commit()
+            return {'message': 'Funds transferred successfully'}
+        else:
+            return {'message': 'Ошибка: Недостаточно средств на балансе пользователя для перевода.'}
     except psycopg2.Error:
         return {'message': 'Error transferring funds'}
     finally:
