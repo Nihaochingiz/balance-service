@@ -5,14 +5,18 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
-host = os.getenv('host')
-database = os.getenv('database')
-user = os.getenv('user')
-password = os.getenv('password')
+#load_dotenv()
+#host = os.getenv('DB_HOST')
+#database = os.getenv('DB_DATABASE')
+#user = os.getenv('DB_USER')
+#password = os.getenv('DB_PASSWORD')
+host = 'db'
+database = 'nudges'
+user = 'username'
+password = 'password'
 
 conn = psycopg2.connect(
-        host=host,
+        host = host,
         database=database,
         user=user,
         password=password
