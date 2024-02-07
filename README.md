@@ -114,10 +114,6 @@ The base URL for the API is `http://localhost:8000`.
 #### Running the Server
 To run the server, execute the Python script. The API will be served locally on `localhost` at port `8000`.
 
-```bash
-python filename.py
-```
-
 ℹ️ Make sure to have the required environment variables set for `HOST`, `DATABASE`, `USER`, and `PASSWORD` for successful database connection.
 
 🚀 Thank you for checking out the API documentation! If you have any further questions or need assistance, feel free to ask!
